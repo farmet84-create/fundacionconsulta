@@ -129,7 +129,7 @@ const S = {
   },
   header: {
     background: "rgba(255,255,255,0.04)",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    borderBottom: "none",
     padding: "0 32px",
     display: "flex",
     alignItems: "center",
@@ -820,6 +820,7 @@ function ConsultaView({ isMobile }) {
   const [filtroAsociacion, setFiltroAsociacion] = useState("");
   const [filtroCoordinador, setFiltroCoordinador] = useState("");
   const [filtroMesCumple, setFiltroMesCumple] = useState("");
+  const [filtroDiaCumple, setFiltroDiaCumple] = useState("");
   const [showMesCal, setShowMesCal] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState("");
   const [detalle, setDetalle] = useState(null);
@@ -851,6 +852,11 @@ function ConsultaView({ isMobile }) {
     setFiltroBarrio("");
   }, [filtroLocalidad]);
 
+  const diasEnMes = (mes) => {
+    if (!mes) return 31;
+    return new Date(2024, Number(mes), 0).getDate(); // 2024 leap year for Feb=29
+  };
+
   // Coordinadores derived from current asociaciones list (cascading on asociacion too)
   const coordinadores = (() => {
     const base = filtroAsociacion
@@ -864,7 +870,7 @@ function ConsultaView({ isMobile }) {
   const filterParams = {
     q: query, estado: filtroEstado,
     localidad: filtroLocalidad, barrio: filtroBarrio, asociacion: filtroAsociacion,
-    coordinador: filtroCoordinador, mes_cumple: filtroMesCumple,
+    coordinador: filtroCoordinador, mes_cumple: filtroMesCumple, dia_cumple: filtroDiaCumple,
     page, perPage: PER_PAGE,
   };
 
@@ -881,7 +887,7 @@ function ConsultaView({ isMobile }) {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, filtroEstado, filtroLocalidad, filtroBarrio, filtroAsociacion, filtroCoordinador, filtroMesCumple, page]);
+  }, [query, filtroEstado, filtroLocalidad, filtroBarrio, filtroAsociacion, filtroCoordinador, filtroMesCumple, filtroDiaCumple, page]);
 
   const loadStats = useCallback(async () => {
     try {
@@ -894,7 +900,7 @@ function ConsultaView({ isMobile }) {
   useEffect(() => { loadStats(); }, [loadStats]);
 
   // reset page on filter change
-  useEffect(() => { setPage(1); }, [query, filtroEstado, filtroLocalidad, filtroBarrio, filtroAsociacion, filtroCoordinador, filtroMesCumple]);
+  useEffect(() => { setPage(1); }, [query, filtroEstado, filtroLocalidad, filtroBarrio, filtroAsociacion, filtroCoordinador, filtroMesCumple, filtroDiaCumple]);
 
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
@@ -981,13 +987,15 @@ function ConsultaView({ isMobile }) {
                 onChange={() => {}}
                 onMouseDown={(e) => { e.preventDefault(); setShowMesCal(s => !s); }}
               >
-                <option value="">{filtroMesCumple ? MESES[filtroMesCumple - 1] : "Todos"}</option>
+                <option value="">
+                  {filtroMesCumple ? `${MESES[filtroMesCumple - 1]}${filtroDiaCumple ? " " + filtroDiaCumple : ""}` : "Todos"}
+                </option>
               </Select>
               {showMesCal && (
                 <div style={S.calendarPopover}>
                   <button
                     style={{ ...S.calMonthBtn(!filtroMesCumple), gridColumn: "1 / -1" }}
-                    onClick={() => { setFiltroMesCumple(""); setShowMesCal(false); }}
+                    onClick={() => { setFiltroMesCumple(""); setFiltroDiaCumple(""); setShowMesCal(false); }}
                   >
                     Todos
                   </button>
@@ -995,11 +1003,30 @@ function ConsultaView({ isMobile }) {
                     <button
                       key={m}
                       style={S.calMonthBtn(String(filtroMesCumple) === String(idx + 1))}
-                      onClick={() => { setFiltroMesCumple(idx + 1); setShowMesCal(false); }}
+                      onClick={() => { setFiltroMesCumple(idx + 1); setFiltroDiaCumple(""); }}
                     >
                       {m.slice(0, 3)}
                     </button>
                   ))}
+                  {filtroMesCumple && (
+                    <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginTop: 6, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 8 }}>
+                      <button
+                        style={{ ...S.calMonthBtn(!filtroDiaCumple), gridColumn: "1 / -1" }}
+                        onClick={() => { setFiltroDiaCumple(""); setShowMesCal(false); }}
+                      >
+                        Todo el mes
+                      </button>
+                      {Array.from({ length: diasEnMes(filtroMesCumple) }, (_, idx) => idx + 1).map(d => (
+                        <button
+                          key={d}
+                          style={{ ...S.calMonthBtn(String(filtroDiaCumple) === String(d)), padding: "6px 2px", fontSize: 11 }}
+                          onClick={() => { setFiltroDiaCumple(d); setShowMesCal(false); }}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1162,13 +1189,19 @@ export default function App() {
   const [tab, setTab] = useState("consulta");
   const [refreshKey, setRefreshKey] = useState(0);
   const isMobile = useIsMobile();
+  const isDay = new Date().getHours() >= 6 && new Date().getHours() < 18;
+
+  const appStyle = isDay
+    ? { ...S.app, background: "linear-gradient(135deg, #f4f6fb 0%, #e8ecf5 50%, #f4f6fb 100%)", color: "#1a2236" }
+    : S.app;
 
   return (
-    <div style={S.app}>
+    <div style={appStyle}>
       <header style={{ ...S.header, padding: isMobile ? "0 16px" : "0 32px" }}>
-        <div style={S.logo}>
+        <div style={{ ...S.logo, color: isDay ? "#1a2236" : "#fff" }}>
           <img src="https://fundacionsonreirconcanas.org/wp-content/uploads/2016/04/cropped-logo-fundacion1-1.png" alt="" style={{ height: 36, width: "auto" }} />
           {!isMobile && "Fundación Sonreír con Canas"}
+          <span style={{ fontSize: 20, marginLeft: 4 }}>{isDay ? "☀️" : "🌙"}</span>
         </div>
         <nav style={S.nav}>
           {[
