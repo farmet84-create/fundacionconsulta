@@ -166,6 +166,17 @@ async function apiDeleteUsuario(id) {
   }
 }
 
+async function apiUpdateMe(data) {
+  const res = await fetch(`${API_BASE}/api/me`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  const out = await res.json();
+  if (!res.ok) throw new Error(out.error || "Error actualizando perfil");
+  return out;
+}
+
 // ===================== ESTILOS =====================
 const S = {
   app: {
@@ -1251,6 +1262,80 @@ function RegistroView({ onRegistrado, onClose }) {
   );
 }
 
+// ===================== MI PERFIL =====================
+function MiPerfilModal({ user, onClose, onSaved }) {
+  const [form, setForm] = useState({ nombre: user.nombre, password: "", foto: user.foto || "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const data = { nombre: form.nombre, foto: form.foto };
+      if (form.password) data.password = form.password;
+      const updated = await apiUpdateMe(data);
+      onSaved(updated);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={S.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={S.modal}>
+        <button style={{ ...S.modalClose, background: "transparent" }} onClick={onClose} title="Cerrar">✕</button>
+        <div style={{ ...S.cardTitle, marginBottom: 20 }}>Mi perfil</div>
+        {error && <div style={S.alert("error")}>{error}</div>}
+        <div style={S.grid(1)}>
+          <Field label="Foto">
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              {form.foto ? (
+                <img src={form.foto} alt="" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} />
+              ) : (
+                <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, color: "rgba(255,255,255,0.4)" }}>
+                  {form.nombre?.[0]?.toUpperCase() || "?"}
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => setForm(f => ({ ...f, foto: reader.result }));
+                  reader.readAsDataURL(file);
+                }}
+              />
+              {form.foto && (
+                <button type="button" style={S.btnSecondary} onClick={() => setForm(f => ({ ...f, foto: "" }))}>Quitar</button>
+              )}
+            </div>
+          </Field>
+          <Field label="Nombre">
+            <Input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
+          </Field>
+          <Field label="Correo">
+            <Input value={user.email} disabled />
+          </Field>
+          <Field label="Nueva contraseña (opcional)">
+            <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••" />
+          </Field>
+        </div>
+        <div style={{ display: "flex", gap: 12, marginTop: 8, justifyContent: "flex-end" }}>
+          <button style={S.btnSecondary} onClick={onClose}>Cancelar</button>
+          <button style={S.btnPrimary} onClick={handleSave} disabled={saving}>
+            {saving ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ===================== VISTA USUARIOS =====================
 function UsuariosView({ currentUserId }) {
   const [usuarios, setUsuarios] = useState([]);
@@ -1500,6 +1585,7 @@ export default function App() {
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem("user")); } catch { return null; }
   });
+  const [showProfile, setShowProfile] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -1551,7 +1637,11 @@ export default function App() {
             </button>
           ))}
           {!isMobile && (
-            <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "rgba(255,255,255,0.4)", marginLeft: 8 }}>
+            <button
+              onClick={() => setShowProfile(true)}
+              style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "rgba(255,255,255,0.4)", marginLeft: 8, background: "none", border: "none", cursor: "pointer" }}
+              title="Mi perfil"
+            >
               {user.foto ? (
                 <img src={user.foto} alt="" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", ...imgFix }} />
               ) : (
@@ -1560,7 +1650,7 @@ export default function App() {
                 </span>
               )}
               {user.nombre} ({user.rol})
-            </span>
+            </button>
           )}
           <button style={S.navPill(false)} onClick={handleLogout}>Salir</button>
         </nav>
@@ -1573,6 +1663,19 @@ export default function App() {
         )}
         {tab === "usuarios" && isAdmin && <UsuariosView currentUserId={user.id} />}
       </main>
+
+      {showProfile && (
+        <MiPerfilModal
+          user={user}
+          onClose={() => setShowProfile(false)}
+          onSaved={(updated) => {
+            const newUser = { ...user, ...updated };
+            setUser(newUser);
+            localStorage.setItem("user", JSON.stringify(newUser));
+            setShowProfile(false);
+          }}
+        />
+      )}
     </div>
   );
 }
