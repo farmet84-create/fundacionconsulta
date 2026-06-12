@@ -431,6 +431,13 @@ function formatDate(d) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
 }
+function calcEdad(d) {
+  if (!d) return null;
+  return Math.floor((Date.now() - new Date(d)) / (365.25 * 24 * 3600 * 1000));
+}
+function telefonoPrincipal(a) {
+  return a.cel_afiliado || a.tel_afiliado || "—";
+}
 
 // ===================== COMPONENTES =====================
 
@@ -662,7 +669,13 @@ function DetalleModal({ afiliado, onClose, onEdit }) {
         <Row label="Celular" val={afiliado.cel_afiliado} />
         <Row label="Email" val={afiliado.email_afiliado} />
         <Row label="Dirección" val={afiliado.dir_afiliado} />
-        <Row label="Localidad" val={localidadNombre(afiliado.id_barrio)} />
+        <Row label="Barrio" val={afiliado.nombre_barrio || localidadNombre(afiliado.id_barrio)} />
+        <Row label="Localidad" val={afiliado.nombre_localidad} />
+
+        <div style={S.sectionDivider}><span>Asociación</span><span style={S.dividerLine} /></div>
+        <Row label="Asociación" val={afiliado.nombre_asociacion} />
+        <Row label="Coordinador" val={afiliado.coordinador} />
+        <Row label="Cel. coordinador" val={afiliado.celular_coordinador} />
 
         {afiliado.obs_afiliado && (
           <>
@@ -797,17 +810,19 @@ function ConsultaView() {
           <table style={S.table}>
             <thead>
               <tr>
-                {["Carnet", "Apellidos y nombres", "Documento", "EPS", "Localidad", "Estado", "Acciones"].map(h => (
+                {["Carnet", "Apellidos y nombres", "Teléfono", "F. Nac. / Edad", "Localidad", "Asociación", "Coordinador", "Estado", "Acciones"].map(h => (
                   <th key={h} style={S.th}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={7} style={{ ...S.td, textAlign: "center", padding: 40, color: "rgba(255,255,255,0.25)" }}>
+                <tr><td colSpan={9} style={{ ...S.td, textAlign: "center", padding: 40, color: "rgba(255,255,255,0.25)" }}>
                   {loading ? "Cargando..." : "Sin resultados para la búsqueda actual"}
                 </td></tr>
-              ) : rows.map(a => (
+              ) : rows.map(a => {
+                const edad = calcEdad(a.nac_afiliado);
+                return (
                 <tr
                   key={a.id_afiliado}
                   style={S.trHover}
@@ -819,9 +834,13 @@ function ConsultaView() {
                     onClick={() => setDetalle(a)}>
                     {a.apellidos_afiliado}, {a.nombres_afiliado}
                   </td>
-                  <td style={S.td}>{a.doc_afiliado}</td>
-                  <td style={{ ...S.td, fontSize: 12 }}>{epsNombre(a.id_eps)}</td>
-                  <td style={{ ...S.td, fontSize: 12 }}>{localidadNombre(a.id_barrio)}</td>
+                  <td style={S.td}>{telefonoPrincipal(a)}</td>
+                  <td style={{ ...S.td, fontSize: 12 }}>
+                    {formatDate(a.nac_afiliado)}{edad != null ? ` (${edad} años)` : ""}
+                  </td>
+                  <td style={{ ...S.td, fontSize: 12 }}>{a.nombre_localidad || "—"}</td>
+                  <td style={{ ...S.td, fontSize: 12 }}>{a.nombre_asociacion || "—"}</td>
+                  <td style={{ ...S.td, fontSize: 12 }}>{a.coordinador || "—"}</td>
                   <td style={S.td}>
                     <span style={a.estado_afiliado === "ACTIVO" ? S.badgeActivo : S.badgeInactivo}>
                       {a.estado_afiliado}
@@ -832,7 +851,7 @@ function ConsultaView() {
                     <button style={S.btnDanger} onClick={() => handleDelete(a.id_afiliado, `${a.nombres_afiliado} ${a.apellidos_afiliado}`)}>🗑️</button>
                   </td>
                 </tr>
-              ))}
+              );})}
             </tbody>
           </table>
         </div>
