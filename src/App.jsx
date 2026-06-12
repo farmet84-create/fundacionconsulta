@@ -462,6 +462,50 @@ const S = {
     cursor: "pointer",
     width: "100%",
   },
+  navPill: (active) => ({
+    padding: "8px 18px",
+    borderRadius: 999,
+    border: active ? "1px solid rgba(79,142,247,0.4)" : "1px solid rgba(255,255,255,0.12)",
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 600,
+    background: active ? "rgba(79,142,247,0.18)" : "rgba(255,255,255,0.05)",
+    color: active ? "#4f8ef7" : "rgba(255,255,255,0.7)",
+  }),
+  iconBtn: (color) => ({
+    width: 34, height: 34,
+    borderRadius: 8,
+    border: `1px solid ${color}40`,
+    background: `${color}1a`,
+    color,
+    cursor: "pointer",
+    display: "flex", alignItems: "center", justifyContent: "center",
+  }),
+  calendarPopover: {
+    position: "absolute",
+    top: "calc(100% + 6px)",
+    left: 0,
+    zIndex: 50,
+    background: "#1a2744",
+    border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: 12,
+    padding: 12,
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 6,
+    width: 220,
+    boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+  },
+  calMonthBtn: (active) => ({
+    padding: "8px 4px",
+    borderRadius: 8,
+    border: active ? "1px solid #4f8ef7" : "1px solid rgba(255,255,255,0.1)",
+    background: active ? "rgba(79,142,247,0.2)" : "rgba(255,255,255,0.04)",
+    color: active ? "#4f8ef7" : "#e8edf5",
+    fontSize: 12,
+    cursor: "pointer",
+    textAlign: "center",
+  }),
 };
 
 // ===================== HELPERS =====================
@@ -732,17 +776,28 @@ function DetalleModal({ afiliado, onClose, onEdit }) {
   );
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 900);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 900);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return isMobile;
+}
+
 const MESES = [
   "Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
 ];
 
-function ConsultaView() {
+function ConsultaView({ isMobile }) {
   const [query, setQuery] = useState("");
   const [filtroLocalidad, setFiltroLocalidad] = useState("");
   const [filtroBarrio, setFiltroBarrio] = useState("");
   const [filtroAsociacion, setFiltroAsociacion] = useState("");
   const [filtroCoordinador, setFiltroCoordinador] = useState("");
   const [filtroMesCumple, setFiltroMesCumple] = useState("");
+  const [showMesCal, setShowMesCal] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState("");
   const [detalle, setDetalle] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
@@ -847,7 +902,7 @@ function ConsultaView() {
 
   return (
     <div>
-      <div style={S.statsGrid}>
+      <div style={{ ...S.statsGrid, gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)" }}>
         {[
           { num: stats.total, label: "Total registrados", color: "#4f8ef7" },
           { num: stats.activos, label: "Activos", color: "#4ade80" },
@@ -855,14 +910,14 @@ function ConsultaView() {
           { num: stats.conEps, label: "Con EPS registrada", color: "#a78bfa" },
         ].map(({ num, label, color }) => (
           <div key={label} style={S.statCard}>
-            <div style={{ ...S.statNum, color }}>{(num || 0).toLocaleString("es-CO")}</div>
+            <div style={{ ...S.statNum, color, fontSize: isMobile ? 22 : 32 }}>{(num || 0).toLocaleString("es-CO")}</div>
             <div style={S.statLabel}>{label}</div>
           </div>
         ))}
       </div>
 
-      <div style={S.layout}>
-        <aside style={S.sidebar}>
+      <div style={{ ...S.layout, flexDirection: isMobile ? "column" : "row" }}>
+        <aside style={{ ...S.sidebar, width: isMobile ? "100%" : 260, position: isMobile ? "static" : "sticky" }}>
           <div style={S.sidebarTitle}>Filtros</div>
 
           <Field label="Localidad">
@@ -894,10 +949,34 @@ function ConsultaView() {
           </Field>
 
           <Field label="Mes de cumpleaños">
-            <Select value={filtroMesCumple} onChange={e => setFiltroMesCumple(e.target.value)}>
-              <option value="">Todos</option>
-              {MESES.map((m, idx) => <option key={m} value={idx + 1}>{m}</option>)}
-            </Select>
+            <div style={{ position: "relative" }}>
+              <Select
+                value=""
+                onChange={() => {}}
+                onMouseDown={(e) => { e.preventDefault(); setShowMesCal(s => !s); }}
+              >
+                <option value="">{filtroMesCumple ? MESES[filtroMesCumple - 1] : "Todos"}</option>
+              </Select>
+              {showMesCal && (
+                <div style={S.calendarPopover}>
+                  <button
+                    style={{ ...S.calMonthBtn(!filtroMesCumple), gridColumn: "1 / -1" }}
+                    onClick={() => { setFiltroMesCumple(""); setShowMesCal(false); }}
+                  >
+                    Todos
+                  </button>
+                  {MESES.map((m, idx) => (
+                    <button
+                      key={m}
+                      style={S.calMonthBtn(String(filtroMesCumple) === String(idx + 1))}
+                      onClick={() => { setFiltroMesCumple(idx + 1); setShowMesCal(false); }}
+                    >
+                      {m.slice(0, 3)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </Field>
 
           <Field label="Estado">
@@ -972,8 +1051,8 @@ function ConsultaView() {
                         </span>
                       </td>
                       <td style={{ ...S.td, display: "flex", gap: 8 }}>
-                        <button style={S.btnEdit} onClick={() => setEditTarget(a)}>Editar</button>
-                        <button style={S.btnDanger} onClick={() => handleDelete(a.id_afiliado, `${a.nombres_afiliado} ${a.apellidos_afiliado}`)}>Eliminar</button>
+                        <button style={S.iconBtn("#4f8ef7")} title="Editar" onClick={() => setEditTarget(a)}>✎</button>
+                        <button style={S.iconBtn("#f87171")} title="Eliminar" onClick={() => handleDelete(a.id_afiliado, `${a.nombres_afiliado} ${a.apellidos_afiliado}`)}>🗑</button>
                       </td>
                     </tr>
                   );})}
@@ -1056,13 +1135,14 @@ function RegistroView({ onRegistrado }) {
 export default function App() {
   const [tab, setTab] = useState("consulta");
   const [refreshKey, setRefreshKey] = useState(0);
+  const isMobile = useIsMobile();
 
   return (
     <div style={S.app}>
-      <header style={S.header}>
+      <header style={{ ...S.header, padding: isMobile ? "0 16px" : "0 32px" }}>
         <div style={S.logo}>
-          <img src="https://fundacionsonreirconcanas.org/wp-content/uploads/2016/04/cropped-logo-fundacion1-1.png" alt="" style={{ height: 40, width: "auto" }} />
-          Fundación Sonreír con Canas
+          <img src="https://fundacionsonreirconcanas.org/wp-content/uploads/2016/04/cropped-logo-fundacion1-1.png" alt="" style={{ height: 36, width: "auto" }} />
+          {!isMobile && "Fundación Sonreír con Canas"}
         </div>
         <nav style={S.nav}>
           {[
@@ -1071,7 +1151,7 @@ export default function App() {
           ].map(({ key, label }) => (
             <button
               key={key}
-              style={S.navBtn(tab === key)}
+              style={S.navPill(tab === key)}
               onClick={() => setTab(key)}
             >
               {label}
@@ -1080,8 +1160,8 @@ export default function App() {
         </nav>
       </header>
 
-      <main style={S.main}>
-        {tab === "consulta" && <ConsultaView key={refreshKey} />}
+      <main style={{ ...S.main, padding: isMobile ? "16px" : "32px" }}>
+        {tab === "consulta" && <ConsultaView key={refreshKey} isMobile={isMobile} />}
         {tab === "registro" && (
           <RegistroView onRegistrado={() => setRefreshKey(k => k + 1)} />
         )}
