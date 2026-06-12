@@ -652,7 +652,7 @@ function AfiliadoForm({ initial, onSave, onCancel }) {
       <div style={{ display: "flex", gap: 12, marginTop: 8, justifyContent: "flex-end" }}>
         {onCancel && <button style={S.btnSecondary} onClick={onCancel}>Cancelar</button>}
         <button style={S.btnPrimary} onClick={handleSubmit} disabled={saving}>
-          💾 {saving ? "Guardando..." : initial?.id_afiliado ? "Guardar cambios" : "Registrar afiliado"}
+          {saving ? "Guardando..." : initial?.id_afiliado ? "Guardar cambios" : "Registrar afiliado"}
         </button>
       </div>
     </div>
@@ -691,7 +691,7 @@ function DetalleModal({ afiliado, onClose, onEdit }) {
             <span style={afiliado.estado_afiliado === "ACTIVO" ? S.badgeActivo : S.badgeInactivo}>
               {afiliado.estado_afiliado}
             </span>
-            <button style={S.btnEdit} onClick={onEdit}>✏️ Editar</button>
+            <button style={S.btnEdit} onClick={onEdit}>Editar</button>
           </div>
         </div>
 
@@ -863,7 +863,7 @@ function ConsultaView() {
 
       <div style={S.layout}>
         <aside style={S.sidebar}>
-          <div style={S.sidebarTitle}>🧭 Filtros</div>
+          <div style={S.sidebarTitle}>Filtros</div>
 
           <Field label="Localidad">
             <Select value={filtroLocalidad} onChange={e => setFiltroLocalidad(e.target.value)}>
@@ -908,14 +908,16 @@ function ConsultaView() {
             </Select>
           </Field>
 
-          <button style={S.btnExport} onClick={handleExport}>⬇ Exportar CSV</button>
+          <button style={S.btnExport} onClick={handleExport}>Exportar CSV</button>
         </aside>
 
         <div style={S.content}>
           <div style={S.card}>
-            <div style={S.cardTitle}>
-              <span style={S.cardTitleIcon}>🔍</span>
-              Consulta de afiliados
+            <div style={{ ...S.cardTitle, justifyContent: "space-between" }}>
+              <span>Consulta de afiliados</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.4)" }}>
+                {loading ? "Cargando..." : `${total.toLocaleString("es-CO")} resultado${total !== 1 ? "s" : ""}`}
+              </span>
             </div>
 
             {error && <div style={S.alert("error")}>{error}</div>}
@@ -927,10 +929,6 @@ function ConsultaView() {
                 value={query}
                 onChange={e => setQuery(e.target.value)}
               />
-            </div>
-
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 12 }}>
-              {loading ? "Cargando..." : `${total.toLocaleString("es-CO")} resultado${total !== 1 ? "s" : ""}`}
             </div>
 
             <div style={{ overflowX: "auto" }}>
@@ -974,8 +972,8 @@ function ConsultaView() {
                         </span>
                       </td>
                       <td style={{ ...S.td, display: "flex", gap: 8 }}>
-                        <button style={S.btnEdit} onClick={() => setEditTarget(a)}>✏️</button>
-                        <button style={S.btnDanger} onClick={() => handleDelete(a.id_afiliado, `${a.nombres_afiliado} ${a.apellidos_afiliado}`)}>🗑️</button>
+                        <button style={S.btnEdit} onClick={() => setEditTarget(a)}>Editar</button>
+                        <button style={S.btnDanger} onClick={() => handleDelete(a.id_afiliado, `${a.nombres_afiliado} ${a.apellidos_afiliado}`)}>Eliminar</button>
                       </td>
                     </tr>
                   );})}
@@ -1007,7 +1005,6 @@ function ConsultaView() {
           <div style={S.modal}>
             <button style={S.modalClose} onClick={() => setEditTarget(null)}>✕</button>
             <div style={{ ...S.cardTitle, marginBottom: 20 }}>
-              <span style={S.cardTitleIcon}>✏️</span>
               Editar afiliado — {editTarget.apellidos_afiliado}
             </div>
             <AfiliadoForm
@@ -1031,7 +1028,7 @@ function RegistroView({ onRegistrado }) {
     <div>
       {success && (
         <div style={S.alert("success")}>
-          ✅ Afiliado registrado exitosamente. El formulario se ha limpiado para un nuevo registro.
+          Afiliado registrado exitosamente. El formulario se ha limpiado para un nuevo registro.
         </div>
       )}
       <div style={S.card}>
@@ -1069,8 +1066,8 @@ export default function App() {
         </div>
         <nav style={S.nav}>
           {[
-            { key: "consulta", label: "🔍 Consulta" },
-            { key: "registro", label: "➕ Nuevo afiliado" },
+            { key: "consulta", label: "Consulta" },
+            { key: "registro", label: "Nuevo afiliado" },
           ].map(({ key, label }) => (
             <button
               key={key}
