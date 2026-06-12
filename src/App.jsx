@@ -1195,14 +1195,16 @@ export default function App() {
   });
 
   const appStyle = isDay
-    ? { ...S.app, background: "linear-gradient(135deg, #f4f6fb 0%, #e8ecf5 50%, #f4f6fb 100%)", color: "#1a2236" }
+    ? { ...S.app, filter: "invert(1) hue-rotate(180deg)" }
     : S.app;
+
+  const imgFix = isDay ? { filter: "invert(1) hue-rotate(180deg)" } : {};
 
   return (
     <div style={appStyle}>
       <header style={{ ...S.header, padding: isMobile ? "0 16px" : "0 32px" }}>
-        <div style={{ ...S.logo, color: isDay ? "#1a2236" : "#fff", fontWeight: 400 }}>
-          <img src="https://fundacionsonreirconcanas.org/wp-content/uploads/2016/04/cropped-logo-fundacion1-1.png" alt="" style={{ height: 36, width: "auto" }} />
+        <div style={{ ...S.logo, fontWeight: 400 }}>
+          <img src="https://fundacionsonreirconcanas.org/wp-content/uploads/2016/04/cropped-logo-fundacion1-1.png" alt="" style={{ height: 36, width: "auto", ...imgFix }} />
           {!isMobile && "Fundación Sonreír con Canas"}
           <button
             onClick={() => setIsDay(d => !d)}
