@@ -112,6 +112,12 @@ async function apiAsociaciones(idLocalidad) {
   if (!res.ok) throw new Error("Error consultando asociaciones");
   return res.json();
 }
+async function apiBarrios(idLocalidad) {
+  const qs = idLocalidad ? `?id_localidad=${idLocalidad}` : "";
+  const res = await fetch(`${API_BASE}/api/barrios${qs}`);
+  if (!res.ok) throw new Error("Error consultando barrios");
+  return res.json();
+}
 
 // ===================== ESTILOS =====================
 const S = {
@@ -166,7 +172,7 @@ const S = {
     color: active ? "#4f8ef7" : "rgba(255,255,255,0.6)",
     borderBottom: active ? "2px solid #4f8ef7" : "2px solid transparent",
   }),
-  main: { padding: "32px", maxWidth: 1100, margin: "0 auto" },
+  main: { padding: "32px", maxWidth: 1800, margin: "0 auto" },
   card: {
     background: "rgba(255,255,255,0.05)",
     border: "1px solid rgba(255,255,255,0.08)",
@@ -293,8 +299,8 @@ const S = {
     borderCollapse: "collapse",
   },
   th: {
-    padding: "10px 14px",
-    fontSize: 11,
+    padding: "14px 16px",
+    fontSize: 13,
     fontWeight: 700,
     color: "rgba(255,255,255,0.4)",
     textAlign: "left",
@@ -304,8 +310,8 @@ const S = {
     whiteSpace: "nowrap",
   },
   td: {
-    padding: "12px 14px",
-    fontSize: 13,
+    padding: "16px 16px",
+    fontSize: 15,
     color: "#d0d8ea",
     borderBottom: "1px solid rgba(255,255,255,0.05)",
     verticalAlign: "middle",
@@ -733,6 +739,7 @@ const MESES = [
 function ConsultaView() {
   const [query, setQuery] = useState("");
   const [filtroLocalidad, setFiltroLocalidad] = useState("");
+  const [filtroBarrio, setFiltroBarrio] = useState("");
   const [filtroAsociacion, setFiltroAsociacion] = useState("");
   const [filtroCoordinador, setFiltroCoordinador] = useState("");
   const [filtroMesCumple, setFiltroMesCumple] = useState("");
@@ -750,17 +757,20 @@ function ConsultaView() {
 
   const [localidades, setLocalidades] = useState([]);
   const [asociaciones, setAsociaciones] = useState([]);
+  const [barrios, setBarrios] = useState([]);
 
   // Load localidades once
   useEffect(() => {
     apiLocalidades().then(setLocalidades).catch(() => {});
   }, []);
 
-  // Load asociaciones when localidad changes (cascading)
+  // Load asociaciones and barrios when localidad changes (cascading)
   useEffect(() => {
     apiAsociaciones(filtroLocalidad || undefined).then(setAsociaciones).catch(() => setAsociaciones([]));
+    apiBarrios(filtroLocalidad || undefined).then(setBarrios).catch(() => setBarrios([]));
     setFiltroAsociacion("");
     setFiltroCoordinador("");
+    setFiltroBarrio("");
   }, [filtroLocalidad]);
 
   // Coordinadores derived from current asociaciones list (cascading on asociacion too)
@@ -775,7 +785,7 @@ function ConsultaView() {
 
   const filterParams = {
     q: query, estado: filtroEstado,
-    localidad: filtroLocalidad, asociacion: filtroAsociacion,
+    localidad: filtroLocalidad, barrio: filtroBarrio, asociacion: filtroAsociacion,
     coordinador: filtroCoordinador, mes_cumple: filtroMesCumple,
     page, perPage: PER_PAGE,
   };
@@ -793,7 +803,7 @@ function ConsultaView() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, filtroEstado, filtroLocalidad, filtroAsociacion, filtroCoordinador, filtroMesCumple, page]);
+  }, [query, filtroEstado, filtroLocalidad, filtroBarrio, filtroAsociacion, filtroCoordinador, filtroMesCumple, page]);
 
   const loadStats = useCallback(async () => {
     try {
@@ -806,7 +816,7 @@ function ConsultaView() {
   useEffect(() => { loadStats(); }, [loadStats]);
 
   // reset page on filter change
-  useEffect(() => { setPage(1); }, [query, filtroEstado, filtroLocalidad, filtroAsociacion, filtroCoordinador, filtroMesCumple]);
+  useEffect(() => { setPage(1); }, [query, filtroEstado, filtroLocalidad, filtroBarrio, filtroAsociacion, filtroCoordinador, filtroMesCumple]);
 
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
@@ -859,6 +869,13 @@ function ConsultaView() {
             <Select value={filtroLocalidad} onChange={e => setFiltroLocalidad(e.target.value)}>
               <option value="">Todas</option>
               {localidades.map(l => <option key={l.id_localidad} value={l.id_localidad}>{l.nombre_localidad}</option>)}
+            </Select>
+          </Field>
+
+          <Field label="Barrio">
+            <Select value={filtroBarrio} onChange={e => setFiltroBarrio(e.target.value)}>
+              <option value="">Todos</option>
+              {barrios.map(b => <option key={b.id_barrio} value={b.id_barrio}>{b.nombre_barrio}</option>)}
             </Select>
           </Field>
 
@@ -1047,7 +1064,7 @@ export default function App() {
     <div style={S.app}>
       <header style={S.header}>
         <div style={S.logo}>
-          <div style={S.logoAccent}>🌟</div>
+          <img src="https://fundacionsonreirconcanas.org/wp-content/uploads/2016/04/cropped-logo-fundacion1-1.png" alt="" style={{ height: 40, width: "auto" }} />
           Fundación Sonreír con Canas
         </div>
         <nav style={S.nav}>
