@@ -25,6 +25,10 @@ body {
   border-radius: 5px;
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 * {
   scrollbar-color: #2a3a5c #0f1724;
 }
