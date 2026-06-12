@@ -101,6 +101,17 @@ async function apiDelete(id) {
   const res = await fetch(`${API_BASE}/api/afiliados/${id}`, { method: "DELETE" });
   if (!res.ok && res.status !== 204) throw new Error("Error eliminando afiliado");
 }
+async function apiLocalidades() {
+  const res = await fetch(`${API_BASE}/api/localidades`);
+  if (!res.ok) throw new Error("Error consultando localidades");
+  return res.json();
+}
+async function apiAsociaciones(idLocalidad) {
+  const qs = idLocalidad ? `?id_localidad=${idLocalidad}` : "";
+  const res = await fetch(`${API_BASE}/api/asociaciones${qs}`);
+  if (!res.ok) throw new Error("Error consultando asociaciones");
+  return res.json();
+}
 
 // ===================== ESTILOS =====================
 const S = {
@@ -418,6 +429,33 @@ const S = {
     height: 1,
     background: "rgba(255,255,255,0.07)",
   },
+  layout: { display: "flex", gap: 24, alignItems: "flex-start" },
+  sidebar: {
+    width: 260,
+    flexShrink: 0,
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 16,
+    padding: "20px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+    position: "sticky",
+    top: 80,
+  },
+  content: { flex: 1, minWidth: 0 },
+  sidebarTitle: { fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 4 },
+  btnExport: {
+    background: "rgba(34,197,94,0.15)",
+    border: "1px solid rgba(34,197,94,0.3)",
+    borderRadius: 10,
+    padding: "10px 16px",
+    fontSize: 13,
+    fontWeight: 600,
+    color: "#4ade80",
+    cursor: "pointer",
+    width: "100%",
+  },
 };
 
 // ===================== HELPERS =====================
@@ -688,12 +726,17 @@ function DetalleModal({ afiliado, onClose, onEdit }) {
   );
 }
 
-// ===================== VISTA CONSULTA =====================
+const MESES = [
+  "Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
+];
+
 function ConsultaView() {
   const [query, setQuery] = useState("");
-  const [filtroEps, setFiltroEps] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroLocalidad, setFiltroLocalidad] = useState("");
+  const [filtroAsociacion, setFiltroAsociacion] = useState("");
+  const [filtroCoordinador, setFiltroCoordinador] = useState("");
+  const [filtroMesCumple, setFiltroMesCumple] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
   const [detalle, setDetalle] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const [page, setPage] = useState(1);
@@ -705,14 +748,43 @@ function ConsultaView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [localidades, setLocalidades] = useState([]);
+  const [asociaciones, setAsociaciones] = useState([]);
+
+  // Load localidades once
+  useEffect(() => {
+    apiLocalidades().then(setLocalidades).catch(() => {});
+  }, []);
+
+  // Load asociaciones when localidad changes (cascading)
+  useEffect(() => {
+    apiAsociaciones(filtroLocalidad || undefined).then(setAsociaciones).catch(() => setAsociaciones([]));
+    setFiltroAsociacion("");
+    setFiltroCoordinador("");
+  }, [filtroLocalidad]);
+
+  // Coordinadores derived from current asociaciones list (cascading on asociacion too)
+  const coordinadores = (() => {
+    const base = filtroAsociacion
+      ? asociaciones.filter(a => String(a.id_asociacion) === String(filtroAsociacion))
+      : asociaciones;
+    const set = new Map();
+    base.forEach(a => { if (a.coordinador) set.set(a.coordinador, true); });
+    return Array.from(set.keys()).sort();
+  })();
+
+  const filterParams = {
+    q: query, estado: filtroEstado,
+    localidad: filtroLocalidad, asociacion: filtroAsociacion,
+    coordinador: filtroCoordinador, mes_cumple: filtroMesCumple,
+    page, perPage: PER_PAGE,
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await apiList({
-        q: query, eps: filtroEps, estado: filtroEstado, barrio: filtroLocalidad,
-        page, perPage: PER_PAGE,
-      });
+      const result = await apiList(filterParams);
       setRows(result.data);
       setTotal(result.total);
     } catch (err) {
@@ -720,7 +792,8 @@ function ConsultaView() {
     } finally {
       setLoading(false);
     }
-  }, [query, filtroEps, filtroEstado, filtroLocalidad, page]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, filtroEstado, filtroLocalidad, filtroAsociacion, filtroCoordinador, filtroMesCumple, page]);
 
   const loadStats = useCallback(async () => {
     try {
@@ -732,11 +805,8 @@ function ConsultaView() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadStats(); }, [loadStats]);
 
-  // debounce search input
-  useEffect(() => {
-    const t = setTimeout(() => setPage(1), 0);
-    return () => clearTimeout(t);
-  }, [query, filtroEps, filtroEstado, filtroLocalidad]);
+  // reset page on filter change
+  useEffect(() => { setPage(1); }, [query, filtroEstado, filtroLocalidad, filtroAsociacion, filtroCoordinador, filtroMesCumple]);
 
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
@@ -755,6 +825,16 @@ function ConsultaView() {
     await loadStats();
   };
 
+  const handleExport = () => {
+    const params = { ...filterParams };
+    delete params.page;
+    delete params.perPage;
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== "" && v != null))
+    ).toString();
+    window.open(`${API_BASE}/api/export?${qs}`, "_blank");
+  };
+
   return (
     <div>
       <div style={S.statsGrid}>
@@ -771,98 +851,130 @@ function ConsultaView() {
         ))}
       </div>
 
-      <div style={S.card}>
-        <div style={S.cardTitle}>
-          <span style={S.cardTitleIcon}>🔍</span>
-          Consulta de afiliados
-        </div>
+      <div style={S.layout}>
+        <aside style={S.sidebar}>
+          <div style={S.sidebarTitle}>🧭 Filtros</div>
 
-        {error && <div style={S.alert("error")}>{error}</div>}
+          <Field label="Localidad">
+            <Select value={filtroLocalidad} onChange={e => setFiltroLocalidad(e.target.value)}>
+              <option value="">Todas</option>
+              {localidades.map(l => <option key={l.id_localidad} value={l.id_localidad}>{l.nombre_localidad}</option>)}
+            </Select>
+          </Field>
 
-        <div style={S.searchBox}>
-          <input
-            style={S.searchInput}
-            placeholder="Buscar por nombre, apellido, documento o nº carnet..."
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-          />
-          <Select value={filtroEps} onChange={e => setFiltroEps(e.target.value)} style={{ width: 180 }}>
-            <option value="">Todas las EPS</option>
-            {EPS_LIST.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-          </Select>
-          <Select value={filtroLocalidad} onChange={e => setFiltroLocalidad(e.target.value)} style={{ width: 160 }}>
-            <option value="">Toda localidad</option>
-            {LOCALIDADES.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
-          </Select>
-          <Select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={{ width: 130 }}>
-            <option value="">Todos</option>
-            <option value="ACTIVO">Activos</option>
-            <option value="INACTIVO">Inactivos</option>
-          </Select>
-        </div>
+          <Field label="Asociación">
+            <Select value={filtroAsociacion} onChange={e => setFiltroAsociacion(e.target.value)}>
+              <option value="">Todas</option>
+              {asociaciones.map(a => <option key={a.id_asociacion} value={a.id_asociacion}>{a.nombre_asociacion}</option>)}
+            </Select>
+          </Field>
 
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 12 }}>
-          {loading ? "Cargando..." : `${total.toLocaleString("es-CO")} resultado${total !== 1 ? "s" : ""}`}
-          {query || filtroEps || filtroEstado || filtroLocalidad ? " (filtrado)" : ""}
-        </div>
+          <Field label="Coordinador">
+            <Select value={filtroCoordinador} onChange={e => setFiltroCoordinador(e.target.value)}>
+              <option value="">Todos</option>
+              {coordinadores.map(c => <option key={c} value={c}>{c}</option>)}
+            </Select>
+          </Field>
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={S.table}>
-            <thead>
-              <tr>
-                {["Carnet", "Apellidos y nombres", "Teléfono", "F. Nac. / Edad", "Localidad", "Asociación", "Coordinador", "Estado", "Acciones"].map(h => (
-                  <th key={h} style={S.th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr><td colSpan={9} style={{ ...S.td, textAlign: "center", padding: 40, color: "rgba(255,255,255,0.25)" }}>
-                  {loading ? "Cargando..." : "Sin resultados para la búsqueda actual"}
-                </td></tr>
-              ) : rows.map(a => {
-                const edad = calcEdad(a.nac_afiliado);
-                return (
-                <tr
-                  key={a.id_afiliado}
-                  style={S.trHover}
-                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                >
-                  <td style={{ ...S.td, color: "#7c5fe8", fontWeight: 700 }}>{a.no_carnet_afiliado || "—"}</td>
-                  <td style={{ ...S.td, fontWeight: 600, color: "#fff", cursor: "pointer" }}
-                    onClick={() => setDetalle(a)}>
-                    {a.apellidos_afiliado}, {a.nombres_afiliado}
-                  </td>
-                  <td style={S.td}>{telefonoPrincipal(a)}</td>
-                  <td style={{ ...S.td, fontSize: 12 }}>
-                    {formatDate(a.nac_afiliado)}{edad != null ? ` (${edad} años)` : ""}
-                  </td>
-                  <td style={{ ...S.td, fontSize: 12 }}>{a.nombre_localidad || "—"}</td>
-                  <td style={{ ...S.td, fontSize: 12 }}>{a.nombre_asociacion || "—"}</td>
-                  <td style={{ ...S.td, fontSize: 12 }}>{a.coordinador || "—"}</td>
-                  <td style={S.td}>
-                    <span style={a.estado_afiliado === "ACTIVO" ? S.badgeActivo : S.badgeInactivo}>
-                      {a.estado_afiliado}
-                    </span>
-                  </td>
-                  <td style={{ ...S.td, display: "flex", gap: 8 }}>
-                    <button style={S.btnEdit} onClick={() => setEditTarget(a)}>✏️</button>
-                    <button style={S.btnDanger} onClick={() => handleDelete(a.id_afiliado, `${a.nombres_afiliado} ${a.apellidos_afiliado}`)}>🗑️</button>
-                  </td>
-                </tr>
-              );})}
-            </tbody>
-          </table>
-        </div>
+          <Field label="Mes de cumpleaños">
+            <Select value={filtroMesCumple} onChange={e => setFiltroMesCumple(e.target.value)}>
+              <option value="">Todos</option>
+              {MESES.map((m, idx) => <option key={m} value={idx + 1}>{m}</option>)}
+            </Select>
+          </Field>
 
-        {totalPages > 1 && (
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 20, alignItems: "center" }}>
-            <button style={S.btnSecondary} disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Anterior</button>
-            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Página {page} de {totalPages}</span>
-            <button style={S.btnSecondary} disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Siguiente →</button>
+          <Field label="Estado">
+            <Select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
+              <option value="">Todos</option>
+              <option value="ACTIVO">Activos</option>
+              <option value="INACTIVO">Inactivos</option>
+            </Select>
+          </Field>
+
+          <button style={S.btnExport} onClick={handleExport}>⬇ Exportar CSV</button>
+        </aside>
+
+        <div style={S.content}>
+          <div style={S.card}>
+            <div style={S.cardTitle}>
+              <span style={S.cardTitleIcon}>🔍</span>
+              Consulta de afiliados
+            </div>
+
+            {error && <div style={S.alert("error")}>{error}</div>}
+
+            <div style={S.searchBox}>
+              <input
+                style={S.searchInput}
+                placeholder="Buscar por nombre, apellido, documento o nº carnet..."
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+              />
+            </div>
+
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 12 }}>
+              {loading ? "Cargando..." : `${total.toLocaleString("es-CO")} resultado${total !== 1 ? "s" : ""}`}
+            </div>
+
+            <div style={{ overflowX: "auto" }}>
+              <table style={S.table}>
+                <thead>
+                  <tr>
+                    {["Carnet", "Apellidos y nombres", "Teléfono", "F. Nac. / Edad", "Localidad", "Asociación", "Coordinador", "Estado", "Acciones"].map(h => (
+                      <th key={h} style={S.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.length === 0 ? (
+                    <tr><td colSpan={9} style={{ ...S.td, textAlign: "center", padding: 40, color: "rgba(255,255,255,0.25)" }}>
+                      {loading ? "Cargando..." : "Sin resultados para la búsqueda actual"}
+                    </td></tr>
+                  ) : rows.map(a => {
+                    const edad = calcEdad(a.nac_afiliado);
+                    return (
+                    <tr
+                      key={a.id_afiliado}
+                      style={S.trHover}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    >
+                      <td style={{ ...S.td, color: "#7c5fe8", fontWeight: 700 }}>{a.no_carnet_afiliado || "—"}</td>
+                      <td style={{ ...S.td, fontWeight: 600, color: "#fff", cursor: "pointer" }}
+                        onClick={() => setDetalle(a)}>
+                        {a.apellidos_afiliado}, {a.nombres_afiliado}
+                      </td>
+                      <td style={S.td}>{telefonoPrincipal(a)}</td>
+                      <td style={{ ...S.td, fontSize: 12 }}>
+                        {formatDate(a.nac_afiliado)}{edad != null ? ` (${edad} años)` : ""}
+                      </td>
+                      <td style={{ ...S.td, fontSize: 12 }}>{a.nombre_localidad || "—"}</td>
+                      <td style={{ ...S.td, fontSize: 12 }}>{a.nombre_asociacion || "—"}</td>
+                      <td style={{ ...S.td, fontSize: 12 }}>{a.coordinador || "—"}</td>
+                      <td style={S.td}>
+                        <span style={a.estado_afiliado === "ACTIVO" ? S.badgeActivo : S.badgeInactivo}>
+                          {a.estado_afiliado}
+                        </span>
+                      </td>
+                      <td style={{ ...S.td, display: "flex", gap: 8 }}>
+                        <button style={S.btnEdit} onClick={() => setEditTarget(a)}>✏️</button>
+                        <button style={S.btnDanger} onClick={() => handleDelete(a.id_afiliado, `${a.nombres_afiliado} ${a.apellidos_afiliado}`)}>🗑️</button>
+                      </td>
+                    </tr>
+                  );})}
+                </tbody>
+              </table>
+            </div>
+
+            {totalPages > 1 && (
+              <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 20, alignItems: "center" }}>
+                <button style={S.btnSecondary} disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Anterior</button>
+                <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Página {page} de {totalPages}</span>
+                <button style={S.btnSecondary} disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Siguiente →</button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {detalle && (
