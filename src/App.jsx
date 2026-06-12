@@ -372,6 +372,10 @@ const S = {
     border: "1px solid rgba(255,255,255,0.08)",
     borderRadius: 12,
     padding: "20px 22px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
   statNum: { fontSize: 32, fontWeight: 800, color: "#fff", lineHeight: 1 },
   statLabel: { fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 6, fontWeight: 500 },
@@ -776,6 +780,25 @@ function DetalleModal({ afiliado, onClose, onEdit }) {
   );
 }
 
+function Sparkline({ color, type = "line" }) {
+  if (type === "bars") {
+    const vals = [8, 14, 10, 18, 22, 16, 26, 12];
+    return (
+      <svg width="70" height="36" viewBox="0 0 70 36">
+        {vals.map((v, i) => (
+          <rect key={i} x={i * 9} y={36 - v} width="6" height={v} rx="2" fill={color} opacity={0.4 + (i / vals.length) * 0.6} />
+        ))}
+      </svg>
+    );
+  }
+  const points = "0,28 10,22 20,26 30,14 40,18 50,8 60,12 70,4";
+  return (
+    <svg width="70" height="36" viewBox="0 0 70 36" fill="none">
+      <polyline points={points} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 900);
   useEffect(() => {
@@ -904,14 +927,17 @@ function ConsultaView({ isMobile }) {
     <div>
       <div style={{ ...S.statsGrid, gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)" }}>
         {[
-          { num: stats.total, label: "Total registrados", color: "#4f8ef7" },
-          { num: stats.activos, label: "Activos", color: "#4ade80" },
-          { num: stats.inactivos, label: "Inactivos", color: "#f87171" },
-          { num: stats.conEps, label: "Con EPS registrada", color: "#a78bfa" },
-        ].map(({ num, label, color }) => (
+          { num: stats.total, label: "Total registrados", color: "#4f8ef7", type: "line" },
+          { num: stats.activos, label: "Activos", color: "#4ade80", type: "line" },
+          { num: stats.inactivos, label: "Inactivos", color: "#f87171", type: "bars" },
+          { num: stats.conEps, label: "Con EPS registrada", color: "#a78bfa", type: "line" },
+        ].map(({ num, label, color, type }) => (
           <div key={label} style={S.statCard}>
-            <div style={{ ...S.statNum, color, fontSize: isMobile ? 22 : 32 }}>{(num || 0).toLocaleString("es-CO")}</div>
-            <div style={S.statLabel}>{label}</div>
+            <div>
+              <div style={{ ...S.statNum, color, fontSize: isMobile ? 22 : 32 }}>{(num || 0).toLocaleString("es-CO")}</div>
+              <div style={S.statLabel}>{label}</div>
+            </div>
+            {!isMobile && <Sparkline color={color} type={type} />}
           </div>
         ))}
       </div>
