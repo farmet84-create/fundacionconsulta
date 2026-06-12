@@ -1152,7 +1152,7 @@ function ConsultaView({ isMobile }) {
 }
 
 // ===================== VISTA REGISTRO =====================
-function RegistroView({ onRegistrado }) {
+function RegistroView({ onRegistrado, onClose }) {
   const [success, setSuccess] = useState(false);
   const [formKey, setFormKey] = useState(0);
 
@@ -1163,14 +1163,15 @@ function RegistroView({ onRegistrado }) {
           Afiliado registrado exitosamente. El formulario se ha limpiado para un nuevo registro.
         </div>
       )}
-      <div style={S.card}>
+      <div style={{ ...S.card, position: "relative" }}>
+        <button style={S.modalClose} onClick={onClose} title="Cerrar">✕</button>
         <div style={S.cardTitle}>
-          <span style={S.cardTitleIcon}>➕</span>
           Nuevo afiliado
         </div>
         <AfiliadoForm
           key={formKey}
           initial={{}}
+          onCancel={onClose}
           onSave={async (data) => {
             await apiCreate(data);
             setSuccess(true);
@@ -1233,7 +1234,7 @@ export default function App() {
       <main style={{ ...S.main, padding: isMobile ? "16px" : "32px" }}>
         {tab === "consulta" && <ConsultaView key={refreshKey} isMobile={isMobile} />}
         {tab === "registro" && (
-          <RegistroView onRegistrado={() => setRefreshKey(k => k + 1)} />
+          <RegistroView onRegistrado={() => setRefreshKey(k => k + 1)} onClose={() => setTab("consulta")} />
         )}
       </main>
     </div>
