@@ -1063,7 +1063,7 @@ function ConsultaView({ isMobile }) {
               />
             </div>
 
-            <div style={{ overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none" }} className="no-scrollbar">
+            <div style={{ overflowX: "auto", scrollbarColor: "#2a3a5c #0f1724" }}>
               <table style={S.table}>
                 <thead>
                   <tr>
