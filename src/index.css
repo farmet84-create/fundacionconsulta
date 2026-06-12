@@ -7,8 +7,10 @@
 html, body, #root {
   width: 100%;
   min-height: 100%;
+  border: none;
+  background: #0f1724;
 }
 
 body {
-  background: #0f1724;
+  overflow-x: hidden;
 }
