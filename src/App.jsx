@@ -82,7 +82,7 @@ async function apiStats() {
 async function apiCreate(data) {
   const res = await fetch(`${API_BASE}/api/afiliados`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Error creando afiliado");
@@ -91,14 +91,14 @@ async function apiCreate(data) {
 async function apiUpdate(id, data) {
   const res = await fetch(`${API_BASE}/api/afiliados/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Error actualizando afiliado");
   return res.json();
 }
 async function apiDelete(id) {
-  const res = await fetch(`${API_BASE}/api/afiliados/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/api/afiliados/${id}`, { method: "DELETE", headers: authHeaders() });
   if (!res.ok && res.status !== 204) throw new Error("Error eliminando afiliado");
 }
 async function apiLocalidades() {
@@ -117,6 +117,53 @@ async function apiBarrios(idLocalidad) {
   const res = await fetch(`${API_BASE}/api/barrios${qs}`);
   if (!res.ok) throw new Error("Error consultando barrios");
   return res.json();
+}
+
+async function apiLogin(email, password) {
+  const res = await fetch(`${API_BASE}/api/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Error de autenticación");
+  return data;
+}
+function authHeaders() {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+async function apiListUsuarios() {
+  const res = await fetch(`${API_BASE}/api/usuarios`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Error consultando usuarios");
+  return res.json();
+}
+async function apiCreateUsuario(data) {
+  const res = await fetch(`${API_BASE}/api/usuarios`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  const out = await res.json();
+  if (!res.ok) throw new Error(out.error || "Error creando usuario");
+  return out;
+}
+async function apiUpdateUsuario(id, data) {
+  const res = await fetch(`${API_BASE}/api/usuarios/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  const out = await res.json();
+  if (!res.ok) throw new Error(out.error || "Error actualizando usuario");
+  return out;
+}
+async function apiDeleteUsuario(id) {
+  const res = await fetch(`${API_BASE}/api/usuarios/${id}`, { method: "DELETE", headers: authHeaders() });
+  if (!res.ok && res.status !== 204) {
+    const out = await res.json().catch(() => ({}));
+    throw new Error(out.error || "Error eliminando usuario");
+  }
 }
 
 // ===================== ESTILOS =====================
@@ -510,6 +557,23 @@ const S = {
     cursor: "pointer",
     textAlign: "center",
   }),
+  loginWrap: {
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "linear-gradient(135deg, #0f1724 0%, #1a2744 50%, #0f1724 100%)",
+  },
+  loginCard: {
+    background: "rgba(255,255,255,0.05)",
+    borderRadius: 20,
+    padding: "40px 36px",
+    width: "100%",
+    maxWidth: 380,
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+  },
 };
 
 // ===================== HELPERS =====================
@@ -813,7 +877,7 @@ const MESES = [
   "Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
 ];
 
-function ConsultaView({ isMobile }) {
+function ConsultaView({ isMobile, canDelete }) {
   const [query, setQuery] = useState("");
   const [filtroLocalidad, setFiltroLocalidad] = useState("");
   const [filtroBarrio, setFiltroBarrio] = useState("");
@@ -1105,7 +1169,9 @@ function ConsultaView({ isMobile }) {
                       </td>
                       <td style={{ ...S.td, display: "flex", gap: 8 }}>
                         <button style={S.iconBtn("#4f8ef7")} title="Editar" onClick={() => setEditTarget(a)}>✎</button>
-                        <button style={S.iconBtn("#f87171")} title="Eliminar" onClick={() => handleDelete(a.id_afiliado, `${a.nombres_afiliado} ${a.apellidos_afiliado}`)}>🗑</button>
+                        {canDelete && (
+                          <button style={S.iconBtn("#f87171")} title="Eliminar" onClick={() => handleDelete(a.id_afiliado, `${a.nombres_afiliado} ${a.apellidos_afiliado}`)}>🗑</button>
+                        )}
                       </td>
                     </tr>
                   );})}
@@ -1185,6 +1251,243 @@ function RegistroView({ onRegistrado, onClose }) {
   );
 }
 
+// ===================== VISTA USUARIOS =====================
+function UsuariosView({ currentUserId }) {
+  const [usuarios, setUsuarios] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [form, setForm] = useState({ nombre: "", email: "", password: "", rol: "agente", foto: "" });
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setUsuarios(await apiListUsuarios());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const openCreate = () => {
+    setEditTarget(null);
+    setForm({ nombre: "", email: "", password: "", rol: "agente", foto: "" });
+    setShowForm(true);
+  };
+
+  const openEdit = (u) => {
+    setEditTarget(u);
+    setForm({ nombre: u.nombre, email: u.email, password: "", rol: u.rol, foto: u.foto || "" });
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      if (editTarget) {
+        const data = { nombre: form.nombre, email: form.email, rol: form.rol, foto: form.foto };
+        if (form.password) data.password = form.password;
+        await apiUpdateUsuario(editTarget.id, data);
+      } else {
+        await apiCreateUsuario(form);
+      }
+      setShowForm(false);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleActivo = async (u) => {
+    try {
+      await apiUpdateUsuario(u.id, { activo: !u.activo });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleDelete = async (u) => {
+    if (!window.confirm(`¿Eliminar al usuario ${u.nombre}?`)) return;
+    try {
+      await apiDeleteUsuario(u.id);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div>
+      <div style={S.card}>
+        <div style={{ ...S.cardTitle, justifyContent: "space-between" }}>
+          <span>Usuarios</span>
+          <button style={S.btnPrimary} onClick={openCreate}>+ Nuevo usuario</button>
+        </div>
+
+        {error && <div style={S.alert("error")}>{error}</div>}
+
+        <div style={{ overflowX: "auto" }}>
+          <table style={S.table}>
+            <thead>
+              <tr>
+                {["", "Nombre", "Email", "Rol", "Estado", "Acciones"].map(h => (
+                  <th key={h} style={S.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={6} style={{ ...S.td, textAlign: "center", padding: 40, color: "rgba(255,255,255,0.25)" }}>Cargando...</td></tr>
+              ) : usuarios.map(u => (
+                <tr key={u.id}>
+                  <td style={S.td}>
+                    {u.foto ? (
+                      <img src={u.foto} alt="" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+                    ) : (
+                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.4)" }}>
+                        {u.nombre?.[0]?.toUpperCase() || "?"}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ ...S.td, fontWeight: 600, color: "#fff" }}>{u.nombre}</td>
+                  <td style={S.td}>{u.email}</td>
+                  <td style={S.td}>{u.rol === "administrador" ? "Administrador" : "Agente"}</td>
+                  <td style={S.td}>
+                    <span style={u.activo ? S.badgeActivo : S.badgeInactivo}>{u.activo ? "ACTIVO" : "INACTIVO"}</span>
+                  </td>
+                  <td style={{ ...S.td, display: "flex", gap: 8 }}>
+                    <button style={S.iconBtn("#4f8ef7")} title="Editar" onClick={() => openEdit(u)}>✎</button>
+                    <button style={S.iconBtn(u.activo ? "#fbbf24" : "#4ade80")} title={u.activo ? "Desactivar" : "Activar"} onClick={() => handleToggleActivo(u)}>
+                      {u.activo ? "⏸" : "▶"}
+                    </button>
+                    {u.id !== currentUserId && (
+                      <button style={S.iconBtn("#f87171")} title="Eliminar" onClick={() => handleDelete(u)}>🗑</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showForm && (
+        <div style={S.overlay} onClick={e => e.target === e.currentTarget && setShowForm(false)}>
+          <div style={S.modal}>
+            <button style={{ ...S.modalClose, background: "transparent" }} onClick={() => setShowForm(false)} title="Cerrar">✕</button>
+            <div style={{ ...S.cardTitle, marginBottom: 20 }}>
+              {editTarget ? "Editar usuario" : "Nuevo usuario"}
+            </div>
+            <div style={S.grid(1)}>
+              <Field label="Foto">
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  {form.foto ? (
+                    <img src={form.foto} alt="" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, color: "rgba(255,255,255,0.4)" }}>
+                      {form.nombre?.[0]?.toUpperCase() || "?"}
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => setForm(f => ({ ...f, foto: reader.result }));
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                  {form.foto && (
+                    <button type="button" style={S.btnSecondary} onClick={() => setForm(f => ({ ...f, foto: "" }))}>Quitar</button>
+                  )}
+                </div>
+              </Field>
+              <Field label="Nombre">
+                <Input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
+              </Field>
+              <Field label="Email">
+                <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+              </Field>
+              <Field label={editTarget ? "Nueva contraseña (opcional)" : "Contraseña"}>
+                <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••" />
+              </Field>
+              <Field label="Rol">
+                <Select value={form.rol} onChange={e => setForm(f => ({ ...f, rol: e.target.value }))}>
+                  <option value="agente">Agente</option>
+                  <option value="administrador">Administrador</option>
+                </Select>
+              </Field>
+            </div>
+            <div style={{ display: "flex", gap: 12, marginTop: 8, justifyContent: "flex-end" }}>
+              <button style={S.btnSecondary} onClick={() => setShowForm(false)}>Cancelar</button>
+              <button style={S.btnPrimary} onClick={handleSave} disabled={saving}>
+                {saving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===================== LOGIN =====================
+function Login({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const data = await apiLogin(email, password);
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      onLogin(data.user);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={S.loginWrap}>
+      <form style={S.loginCard} onSubmit={handleSubmit}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <img src="https://fundacionsonreirconcanas.org/wp-content/uploads/2016/04/cropped-logo-fundacion1-1.png" alt="" style={{ height: 48 }} />
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", textAlign: "center" }}>Fundación Sonreír con Canas</div>
+        </div>
+        {error && <div style={S.alert("error")}>{error}</div>}
+        <Field label="Correo">
+          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@ejemplo.com" required />
+        </Field>
+        <Field label="Contraseña">
+          <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
+        </Field>
+        <button style={S.btnPrimary} type="submit" disabled={loading}>
+          {loading ? "Ingresando..." : "Iniciar sesión"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 // ===================== APP PRINCIPAL =====================
 export default function App() {
   const [tab, setTab] = useState("consulta");
@@ -1194,12 +1497,34 @@ export default function App() {
     const h = new Date().getHours();
     return h >= 6 && h < 18;
   });
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("user")); } catch { return null; }
+  });
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    setTab("consulta");
+  };
+
+  if (!user) {
+    return <Login onLogin={setUser} />;
+  }
+
+  const isAdmin = user.rol === "administrador";
 
   const appStyle = isDay
     ? { ...S.app, filter: "invert(1) hue-rotate(180deg)" }
     : S.app;
 
   const imgFix = isDay ? { filter: "invert(1) hue-rotate(180deg)" } : {};
+
+  const navItems = [
+    { key: "consulta", label: "Consulta" },
+    { key: "registro", label: "Nuevo afiliado" },
+  ];
+  if (isAdmin) navItems.push({ key: "usuarios", label: "Usuarios" });
 
   return (
     <div style={appStyle}>
@@ -1215,11 +1540,8 @@ export default function App() {
             {isDay ? "☀️" : "🌙"}
           </button>
         </div>
-        <nav style={S.nav}>
-          {[
-            { key: "consulta", label: "Consulta" },
-            { key: "registro", label: "Nuevo afiliado" },
-          ].map(({ key, label }) => (
+        <nav style={{ ...S.nav, alignItems: "center" }}>
+          {navItems.map(({ key, label }) => (
             <button
               key={key}
               style={S.navPill(tab === key)}
@@ -1228,14 +1550,28 @@ export default function App() {
               {label}
             </button>
           ))}
+          {!isMobile && (
+            <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "rgba(255,255,255,0.4)", marginLeft: 8 }}>
+              {user.foto ? (
+                <img src={user.foto} alt="" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", ...imgFix }} />
+              ) : (
+                <span style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
+                  {user.nombre?.[0]?.toUpperCase() || "?"}
+                </span>
+              )}
+              {user.nombre} ({user.rol})
+            </span>
+          )}
+          <button style={S.navPill(false)} onClick={handleLogout}>Salir</button>
         </nav>
       </header>
 
       <main style={{ ...S.main, padding: isMobile ? "16px" : "32px" }}>
-        {tab === "consulta" && <ConsultaView key={refreshKey} isMobile={isMobile} />}
+        {tab === "consulta" && <ConsultaView key={refreshKey} isMobile={isMobile} canDelete={isAdmin} />}
         {tab === "registro" && (
           <RegistroView onRegistrado={() => setRefreshKey(k => k + 1)} onClose={() => setTab("consulta")} />
         )}
+        {tab === "usuarios" && isAdmin && <UsuariosView currentUserId={user.id} />}
       </main>
     </div>
   );
