@@ -927,17 +927,17 @@ function ConsultaView({ isMobile }) {
     <div>
       <div style={{ ...S.statsGrid, gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)" }}>
         {[
-          { num: stats.total, label: "Total registrados", color: "#4f8ef7", type: "line" },
-          { num: stats.activos, label: "Activos", color: "#4ade80", type: "line" },
-          { num: stats.inactivos, label: "Inactivos", color: "#f87171", type: "bars" },
-          { num: stats.conEps, label: "Con EPS registrada", color: "#a78bfa", type: "line" },
-        ].map(({ num, label, color, type }) => (
+          { num: stats.total, label: "Total registrados", color: "#4f8ef7" },
+          { num: stats.activos, label: "Activos", color: "#4ade80" },
+          { num: stats.inactivos, label: "Inactivos", color: "#f87171" },
+          { num: stats.conEps, label: "Con EPS registrada", color: "#a78bfa" },
+        ].map(({ num, label, color }) => (
           <div key={label} style={S.statCard}>
             <div>
               <div style={{ ...S.statNum, color, fontSize: isMobile ? 22 : 32 }}>{(num || 0).toLocaleString("es-CO")}</div>
               <div style={S.statLabel}>{label}</div>
             </div>
-            {!isMobile && <Sparkline color={color} type={type} />}
+            {!isMobile && <Sparkline color={color} type="bars" />}
           </div>
         ))}
       </div>
