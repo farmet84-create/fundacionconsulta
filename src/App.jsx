@@ -45,6 +45,7 @@ const ESTADOS = ["ACTIVO", "INACTIVO"];
 
 // ===================== ESTADO INICIAL =====================
 const EMPTY_AFILIADO = {
+  foto_afiliado: "",
   apellidos_afiliado: "",
   nombres_afiliado: "",
   doc_afiliado: "",
@@ -660,6 +661,31 @@ function AfiliadoForm({ initial, onSave, onCancel }) {
         <span>Datos personales</span>
         <span style={S.dividerLine} />
       </div>
+      <Field label="Foto">
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 4 }}>
+          {form.foto_afiliado ? (
+            <img src={form.foto_afiliado} alt="" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, color: "rgba(255,255,255,0.4)" }}>
+              {form.nombres_afiliado?.[0]?.toUpperCase() || "?"}
+            </div>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={e => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => set("foto_afiliado", reader.result);
+              reader.readAsDataURL(file);
+            }}
+          />
+          {form.foto_afiliado && (
+            <button type="button" style={S.btnSecondary} onClick={() => set("foto_afiliado", "")}>Quitar</button>
+          )}
+        </div>
+      </Field>
       <div style={S.grid(3)}>
         <Field label="Apellidos *">
           <Input value={form.apellidos_afiliado || ""} onChange={e => set("apellidos_afiliado", e.target.value.toUpperCase())} placeholder="APELLIDO APELLIDO" />
@@ -801,13 +827,22 @@ function DetalleModal({ afiliado, onClose, onEdit }) {
       <div style={S.modal}>
         <button style={S.modalClose} onClick={onClose}>✕</button>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>
-              {afiliado.apellidos_afiliado}, {afiliado.nombres_afiliado}
-            </div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginTop: 6 }}>
-              CC {afiliado.doc_afiliado}
-              {edad ? ` · ${edad} años` : ""}
+          <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+            {afiliado.foto_afiliado ? (
+              <img src={afiliado.foto_afiliado} alt="" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, color: "rgba(255,255,255,0.4)", flexShrink: 0 }}>
+                {afiliado.nombres_afiliado?.[0]?.toUpperCase() || "?"}
+              </div>
+            )}
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>
+                {afiliado.apellidos_afiliado}, {afiliado.nombres_afiliado}
+              </div>
+              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginTop: 6 }}>
+                CC {afiliado.doc_afiliado}
+                {edad ? ` · ${edad} años` : ""}
+              </div>
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
