@@ -175,7 +175,7 @@ const S = {
   main: { padding: "32px", maxWidth: 1800, margin: "0 auto" },
   card: {
     background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.08)",
+    border: "none",
     borderRadius: 16,
     padding: "28px 32px",
     marginBottom: 24,
@@ -369,7 +369,7 @@ const S = {
   },
   statCard: {
     background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.08)",
+    border: "none",
     borderRadius: 12,
     padding: "20px 22px",
     display: "flex",
@@ -444,7 +444,7 @@ const S = {
     width: 260,
     flexShrink: 0,
     background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.08)",
+    border: "none",
     borderRadius: 16,
     padding: "20px",
     display: "flex",
