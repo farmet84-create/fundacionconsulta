@@ -1063,7 +1063,7 @@ function ConsultaView({ isMobile }) {
               />
             </div>
 
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none" }} className="no-scrollbar">
               <table style={S.table}>
                 <thead>
                   <tr>
@@ -1164,7 +1164,7 @@ function RegistroView({ onRegistrado, onClose }) {
         </div>
       )}
       <div style={{ ...S.card, position: "relative" }}>
-        <button style={S.modalClose} onClick={onClose} title="Cerrar">✕</button>
+        <button style={{ ...S.modalClose, background: "transparent" }} onClick={onClose} title="Cerrar">✕</button>
         <div style={S.cardTitle}>
           Nuevo afiliado
         </div>
