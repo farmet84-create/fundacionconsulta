@@ -1189,7 +1189,10 @@ export default function App() {
   const [tab, setTab] = useState("consulta");
   const [refreshKey, setRefreshKey] = useState(0);
   const isMobile = useIsMobile();
-  const isDay = new Date().getHours() >= 6 && new Date().getHours() < 18;
+  const [isDay, setIsDay] = useState(() => {
+    const h = new Date().getHours();
+    return h >= 6 && h < 18;
+  });
 
   const appStyle = isDay
     ? { ...S.app, background: "linear-gradient(135deg, #f4f6fb 0%, #e8ecf5 50%, #f4f6fb 100%)", color: "#1a2236" }
@@ -1198,10 +1201,16 @@ export default function App() {
   return (
     <div style={appStyle}>
       <header style={{ ...S.header, padding: isMobile ? "0 16px" : "0 32px" }}>
-        <div style={{ ...S.logo, color: isDay ? "#1a2236" : "#fff" }}>
+        <div style={{ ...S.logo, color: isDay ? "#1a2236" : "#fff", fontWeight: 400 }}>
           <img src="https://fundacionsonreirconcanas.org/wp-content/uploads/2016/04/cropped-logo-fundacion1-1.png" alt="" style={{ height: 36, width: "auto" }} />
           {!isMobile && "Fundación Sonreír con Canas"}
-          <span style={{ fontSize: 20, marginLeft: 4 }}>{isDay ? "☀️" : "🌙"}</span>
+          <button
+            onClick={() => setIsDay(d => !d)}
+            style={{ fontSize: 20, marginLeft: 4, background: "none", border: "none", cursor: "pointer", lineHeight: 1 }}
+            title="Cambiar tema"
+          >
+            {isDay ? "☀️" : "🌙"}
+          </button>
         </div>
         <nav style={S.nav}>
           {[
