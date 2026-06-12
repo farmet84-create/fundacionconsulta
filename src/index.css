@@ -14,3 +14,17 @@ html, body, #root {
 body {
   overflow-x: hidden;
 }
+
+::-webkit-scrollbar {
+  width: 10px;
+  background: #0f1724;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a3a5c;
+  border-radius: 5px;
+}
+
+* {
+  scrollbar-color: #2a3a5c #0f1724;
+}
